@@ -14,53 +14,40 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
-          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/shelter"
-          element={
-            <ProtectedRoute>
-              <ShelterList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/warehouse"
-          element={
-            <ProtectedRoute allowedRoles={['站长', '指挥长', '市人防办']}>
-              <WarehouseManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/personnel"
-          element={
-            <ProtectedRoute>
-              <PersonnelTracking />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/emergency"
-          element={
-            <ProtectedRoute allowedRoles={['指挥长', '市人防办']}>
-              <EmergencyManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute allowedRoles={['站长', '指挥长', '市人防办']}>
-              <ReportCenter />
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/dashboard" element={<div />} />
+          <Route path="/shelter" element={<ShelterList />} />
+          <Route
+            path="/warehouse"
+            element={
+              <ProtectedRoute allowedRoles={['站长', '指挥长', '市人防办']}>
+                <WarehouseManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/personnel" element={<PersonnelTracking />} />
+          <Route
+            path="/emergency"
+            element={
+              <ProtectedRoute allowedRoles={['指挥长', '市人防办']}>
+                <EmergencyManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute allowedRoles={['站长', '指挥长', '市人防办']}>
+                <ReportCenter />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

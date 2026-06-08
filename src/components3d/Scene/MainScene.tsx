@@ -15,7 +15,7 @@ import { usePersonnelStore } from '@/store/usePersonnelStore';
 import { useEmergencyStore } from '@/store/useEmergencyStore';
 
 const MainScene = () => {
-  const { units, doorStatus, ventilationStatus, selectedUnitId, selectUnit } = useShelterStore();
+  const { units, doorStatus, ventilationStatus, selectedUnitId, selectObject } = useShelterStore();
   const { personnel } = usePersonnelStore();
   const { currentPlan } = useEmergencyStore();
 
@@ -24,6 +24,7 @@ const MainScene = () => {
       shadows
       camera={{ position: [0, 80, 60], fov: 50 }}
       gl={{ antialias: true, alpha: true }}
+      onPointerMissed={() => selectObject(null, null)}
     >
       <color attach="background" args={['#050a14']} />
       <fog attach="fog" args={['#050a14', 50, 150]} />
@@ -36,23 +37,23 @@ const MainScene = () => {
           <ShelterUnit3D
             key={unit.id}
             unit={unit}
-            isSelected={selectedUnitId === unit.id}
-            onClick={() => selectUnit(unit.id)}
+            isSelected={selectedUnitId === unit.id && useShelterStore.getState().selectedObjectType === 'shelter'}
+            onClick={() => selectObject('shelter', unit.id)}
           />
         ))}
 
         {doorStatus.map((door) => (
-          <Door3D key={door.id} door={door} />
+          <Door3D key={door.id} door={door} onClick={() => selectObject('door', door.id)} />
         ))}
 
         {ventilationStatus.map((vent) => (
           <Ventilation3D key={vent.id} ventilation={vent} />
         ))}
 
-        <Warehouse3D position={[0, 0, -25]} />
+        <Warehouse3D position={[0, 0, -25]} onClick={() => selectObject('warehouse', 'w1')} />
 
         {personnel.map((person) => (
-          <Personnel3D key={person.id} person={person} />
+          <Personnel3D key={person.id} person={person} onClick={() => selectObject('personnel', person.id)} />
         ))}
 
         {currentPlan?.paths.map((path) => (

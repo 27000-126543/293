@@ -6,9 +6,10 @@ import { useShelterStore } from '@/store/useShelterStore';
 
 interface Door3DProps {
   door: DoorStatus;
+  onClick?: () => void;
 }
 
-const Door3D = ({ door }: Door3DProps) => {
+const Door3D = ({ door, onClick }: Door3DProps) => {
   const doorRef = useRef<any>(null);
   const { toggleDoor } = useShelterStore();
 
@@ -27,7 +28,7 @@ const Door3D = ({ door }: Door3DProps) => {
   };
 
   return (
-    <group position={[door.position.x, door.position.y, door.position.z]}>
+    <group position={[door.position.x, door.position.y, door.position.z]} onClick={(e) => { e.stopPropagation(); onClick?.(); }}>
       <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[3.5, 5.5, 0.5]} />
         <meshStandardMaterial color="#1a1a2e" metalness={0.8} roughness={0.3} />

@@ -5,9 +5,10 @@ import { useWarehouseStore } from '@/store/useWarehouseStore';
 
 interface Warehouse3DProps {
   position: [number, number, number];
+  onClick?: () => void;
 }
 
-const Warehouse3D = ({ position }: Warehouse3DProps) => {
+const Warehouse3D = ({ position, onClick }: Warehouse3DProps) => {
   const groupRef = useRef<any>(null);
   const { lowStockMaterials, materials } = useWarehouseStore();
   const hasLowStock = lowStockMaterials.length > 0;
@@ -20,7 +21,7 @@ const Warehouse3D = ({ position }: Warehouse3DProps) => {
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} onClick={(e) => { e.stopPropagation(); onClick?.(); }}>
       <mesh position={[0, 3, 0]} castShadow receiveShadow>
         <boxGeometry args={[15, 6, 12]} />
         <meshStandardMaterial

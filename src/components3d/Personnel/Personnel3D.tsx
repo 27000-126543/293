@@ -5,9 +5,10 @@ import type { Person } from '@/types';
 
 interface Personnel3DProps {
   person: Person;
+  onClick?: () => void;
 }
 
-const Personnel3D = ({ person }: Personnel3DProps) => {
+const Personnel3D = ({ person, onClick }: Personnel3DProps) => {
   const groupRef = useRef<any>(null);
   const alertRef = useRef<any>(null);
 
@@ -29,6 +30,7 @@ const Personnel3D = ({ person }: Personnel3DProps) => {
     <group
       ref={groupRef}
       position={[person.position.x, person.position.y, person.position.z]}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
     >
       {person.isInUnprotectedZone && (
         <mesh ref={alertRef} position={[0, 3, 0]}>
