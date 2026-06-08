@@ -16,6 +16,7 @@ const EmergencyManagement = () => {
     alertLevel,
     currentPlan,
     maintenanceOrders,
+    rerouteNotes,
     setAlertLevel,
     approvePlan,
     executePlan,
@@ -192,6 +193,23 @@ const EmergencyManagement = () => {
                   </div>
                 </div>
               </div>
+
+              {rerouteNotes.length > 0 && (
+                <div className="mb-6 p-4 bg-alert-orange/10 rounded-lg border border-alert-orange/30">
+                  <h4 className="text-sm font-bold text-alert-orange mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    路线调整说明
+                  </h4>
+                  <ul className="space-y-1">
+                    {rerouteNotes.map((note, i) => (
+                      <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                        <span className="text-alert-orange mt-1">•</span>
+                        {note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {!currentPlan.isApproved ? (
                 canApprove && (

@@ -174,3 +174,12 @@ export interface MaterialConsumption {
   date: string;
   purpose: string;
 }
+
+export interface RestockRecord {
+  id: string;
+  materialId: string;
+  materialName: string;
+  quantity: number;
+  date: string;
+  source: string;
+}

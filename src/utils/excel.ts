@@ -1,6 +1,33 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import type { DrillRecord, MaterialConsumption } from '@/types';
+import type { DrillRecord, MaterialConsumption, PurchaseRequest } from '@/types';
+
+const styleHeader = (sheet: ExcelJS.Worksheet) => {
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, size: 12, color: { argb: 'FF00D4FF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0A1628' },
+  };
+  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+};
+
+const styleRows = (sheet: ExcelJS.Worksheet, rowCount: number) => {
+  for (let i = 2; i <= rowCount; i++) {
+    const row = sheet.getRow(i);
+    row.alignment = { horizontal: 'center', vertical: 'middle' };
+    if (i % 2 === 0) {
+      row.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF0F2038' },
+      };
+    }
+  }
+};
+
+const typeLabel = (type: string) => type === 'food' ? '食品' : type === 'water' ? '水' : '药品';
 
 export const exportMaterialConsumption = async (
   consumptions: MaterialConsumption[],
@@ -17,39 +44,22 @@ export const exportMaterialConsumption = async (
     { header: '用途', key: 'purpose', width: 20 },
   ];
 
-  const headerRow = worksheet.getRow(1);
-  headerRow.font = { bold: true, size: 12, color: { argb: 'FF00D4FF' } };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF0A1628' },
-  };
-  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  styleHeader(worksheet);
 
-  consumptions.forEach((item, index) => {
-    const row = worksheet.addRow({
+  consumptions.forEach((item) => {
+    worksheet.addRow({
       date: item.date,
       materialName: item.materialName,
-      type: item.type === 'food' ? '食品' : item.type === 'water' ? '水' : '药品',
+      type: typeLabel(item.type),
       quantity: item.quantity,
       purpose: item.purpose,
     });
-
-    row.alignment = { horizontal: 'center', vertical: 'middle' };
-
-    if (index % 2 === 0) {
-      row.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF0F2038' },
-      };
-    }
   });
+
+  styleRows(worksheet, worksheet.rowCount);
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `物资消耗统计_${month}.xlsx`);
 };
 
@@ -69,16 +79,9 @@ export const exportDrillRecords = async (
     { header: '备注', key: 'notes', width: 30 },
   ];
 
-  const headerRow = worksheet.getRow(1);
-  headerRow.font = { bold: true, size: 12, color: { argb: 'FF00D4FF' } };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF0A1628' },
-  };
-  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  styleHeader(worksheet);
 
-  records.forEach((item, index) => {
+  records.forEach((item) => {
     const row = worksheet.addRow({
       date: item.date,
       name: item.name,
@@ -88,33 +91,24 @@ export const exportDrillRecords = async (
       notes: item.notes,
     });
 
-    row.alignment = { horizontal: 'center', vertical: 'middle' };
-
     if (item.result === '优秀') {
       row.getCell('result').font = { color: { argb: 'FF00FF88' } };
     } else if (item.result === '良好') {
       row.getCell('result').font = { color: { argb: 'FFFFCC00' } };
     }
-
-    if (index % 2 === 0) {
-      row.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF0F2038' },
-      };
-    }
   });
+
+  styleRows(worksheet, worksheet.rowCount);
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `应急演练统计_${month}.xlsx`);
 };
 
 export const exportMonthlyReport = async (
   consumptions: MaterialConsumption[],
   records: DrillRecord[],
+  approvals: PurchaseRequest[],
   month: string
 ) => {
   const workbook = new ExcelJS.Workbook();
@@ -127,8 +121,19 @@ export const exportMonthlyReport = async (
     { header: '数量', key: 'quantity', width: 10 },
     { header: '用途', key: 'purpose', width: 20 },
   ];
+  styleHeader(consumptionSheet);
+  consumptions.forEach((item) => {
+    consumptionSheet.addRow({
+      date: item.date,
+      materialName: item.materialName,
+      type: typeLabel(item.type),
+      quantity: item.quantity,
+      purpose: item.purpose,
+    });
+  });
+  styleRows(consumptionSheet, consumptionSheet.rowCount);
 
-  const drillSheet = workbook.addWorksheet('应急演练统计');
+  const drillSheet = workbook.addWorksheet('演练统计');
   drillSheet.columns = [
     { header: '日期', key: 'date', width: 15 },
     { header: '演练名称', key: 'name', width: 25 },
@@ -137,31 +142,9 @@ export const exportMonthlyReport = async (
     { header: '结果', key: 'result', width: 10 },
     { header: '备注', key: 'notes', width: 30 },
   ];
-
-  [consumptionSheet, drillSheet].forEach((sheet) => {
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, size: 12, color: { argb: 'FF00D4FF' } };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF0A1628' },
-    };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  consumptions.forEach((item, index) => {
-    const row = consumptionSheet.addRow({
-      date: item.date,
-      materialName: item.materialName,
-      type: item.type === 'food' ? '食品' : item.type === 'water' ? '水' : '药品',
-      quantity: item.quantity,
-      purpose: item.purpose,
-    });
-    row.alignment = { horizontal: 'center', vertical: 'middle' };
-  });
-
-  records.forEach((item, index) => {
-    const row = drillSheet.addRow({
+  styleHeader(drillSheet);
+  records.forEach((item) => {
+    drillSheet.addRow({
       date: item.date,
       name: item.name,
       participants: item.participants,
@@ -169,12 +152,43 @@ export const exportMonthlyReport = async (
       result: item.result,
       notes: item.notes,
     });
-    row.alignment = { horizontal: 'center', vertical: 'middle' };
   });
+  styleRows(drillSheet, drillSheet.rowCount);
+
+  const approvalSheet = workbook.addWorksheet('审批记录');
+  approvalSheet.columns = [
+    { header: '申请编号', key: 'requestId', width: 18 },
+    { header: '申请日期', key: 'createdAt', width: 15 },
+    { header: '申请人', key: 'applicant', width: 12 },
+    { header: '物资明细', key: 'materials', width: 30 },
+    { header: '当前状态', key: 'status', width: 12 },
+    { header: '街道人防办', key: 'level1', width: 15 },
+    { header: '区人防办', key: 'level2', width: 15 },
+    { header: '市人防办', key: 'level3', width: 15 },
+  ];
+  styleHeader(approvalSheet);
+  approvals.forEach((item) => {
+    const getLevelStatus = (level: number) => {
+      const record = item.approvalRecords.find((r) => r.level === level);
+      if (!record || record.status === 'pending') return '待审批';
+      if (record.status === 'approved') return `通过(${record.approver})`;
+      return `拒绝(${record.approver})`;
+    };
+
+    approvalSheet.addRow({
+      requestId: `#${item.id.slice(-6).toUpperCase()}`,
+      createdAt: item.createdAt,
+      applicant: item.applicant,
+      materials: item.materials.map((m) => `${m.name}×${m.quantity}`).join(', '),
+      status: item.status === 'approved' ? '已通过' : item.status === 'rejected' ? '已拒绝' : '待审批',
+      level1: getLevelStatus(1),
+      level2: getLevelStatus(2),
+      level3: getLevelStatus(3),
+    });
+  });
+  styleRows(approvalSheet, approvalSheet.rowCount);
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `人防工程月度报告_${month}.xlsx`);
 };

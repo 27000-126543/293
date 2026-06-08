@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Package, AlertTriangle, Check, X, Clock, User } from 'lucide-react';
+import { Package, AlertTriangle, Check, X, Clock, User, Truck } from 'lucide-react';
 import { useWarehouseStore } from '@/store/useWarehouseStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
 const WarehouseManagement = () => {
-  const { materials, purchaseRequests, lowStockMaterials, approvePurchase, rejectPurchase } = useWarehouseStore();
+  const { materials, purchaseRequests, lowStockMaterials, restockRecords, approvePurchase, rejectPurchase } = useWarehouseStore();
   const { currentUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'stock' | 'purchase'>('stock');
+  const [activeTab, setActiveTab] = useState<'stock' | 'purchase' | 'restock'>('stock');
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
   const [comment, setComment] = useState('');
 
@@ -24,6 +24,12 @@ const WarehouseManagement = () => {
   };
 
   const userApprovalLevel = getApprovalLevelForRole();
+
+  const materialRestockMap: Record<string, typeof restockRecords> = {};
+  restockRecords.forEach((r) => {
+    if (!materialRestockMap[r.materialId]) materialRestockMap[r.materialId] = [];
+    materialRestockMap[r.materialId].push(r);
+  });
 
   return (
     <div className="space-y-6">
@@ -55,6 +61,17 @@ const WarehouseManagement = () => {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('restock')}
+          className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'restock'
+              ? 'bg-tech-500/20 text-tech-300 border border-tech-400'
+              : 'bg-military-800 text-gray-400 hover:bg-military-700'
+          }`}
+        >
+          <Truck className="w-4 h-4 inline mr-2" />
+          补货记录
+        </button>
       </div>
 
       {activeTab === 'stock' ? (
@@ -63,6 +80,7 @@ const WarehouseManagement = () => {
             const daysRemaining = getDaysRemaining(material);
             const isLowStock = lowStockMaterials.includes(material.id);
             const isExpiringSoon = new Date(material.expiryDate) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            const restocks = materialRestockMap[material.id] || [];
 
             return (
               <div
@@ -129,11 +147,23 @@ const WarehouseManagement = () => {
                     </p>
                   </div>
                 </div>
+
+                {restocks.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-tech-500/20">
+                    <p className="text-xs text-gray-500 mb-1">近期补货</p>
+                    {restocks.slice(0, 2).map((r) => (
+                      <div key={r.id} className="flex items-center justify-between text-xs">
+                        <span className="text-tech-400">+{r.quantity}{material.unit}</span>
+                        <span className="text-gray-600">{r.date} {r.source}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-      ) : (
+      ) : activeTab === 'purchase' ? (
         <div className="space-y-4">
           {purchaseRequests.length === 0 ? (
             <div className="data-card text-center py-12">
@@ -211,6 +241,12 @@ const WarehouseManagement = () => {
                         {record?.approver && (
                           <p className="text-xs text-gray-500">{record.approver}</p>
                         )}
+                        {record?.date && (
+                          <p className="text-[10px] text-gray-600">{record.date}</p>
+                        )}
+                        {record?.comment && (
+                          <p className="text-[10px] text-gray-500 mt-0.5">意见: {record.comment}</p>
+                        )}
                       </div>
                     );
                   })}
@@ -220,6 +256,9 @@ const WarehouseManagement = () => {
                   request.currentLevel === userApprovalLevel &&
                   userApprovalLevel > 0 && (
                     <div className="border-t border-tech-500/20 pt-4">
+                      <p className="text-sm text-alert-yellow mb-2">
+                        当前需 <strong>{['', '街道人防办', '区人防办', '市人防办'][userApprovalLevel]}</strong> 审批
+                      </p>
                       <textarea
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
@@ -251,6 +290,36 @@ const WarehouseManagement = () => {
                       </div>
                     </div>
                   )}
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {restockRecords.length === 0 ? (
+            <div className="data-card text-center py-12">
+              <Truck className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-500">暂无补货记录</p>
+              <p className="text-xs text-gray-600 mt-1">采购申请三级审批通过后将自动补入库存</p>
+            </div>
+          ) : (
+            restockRecords.map((record) => (
+              <div key={record.id} className="data-card">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-alert-green/20 flex items-center justify-center">
+                      <Truck className="w-5 h-5 text-alert-green" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-200">{record.materialName}</p>
+                      <p className="text-xs text-gray-500">补货数量: +{record.quantity}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-tech-400 font-medium">{record.date}</p>
+                    <p className="text-xs text-gray-500">{record.source}</p>
+                  </div>
+                </div>
               </div>
             ))
           )}

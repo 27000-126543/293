@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FileBarChart, Download, Calendar, Package, Users, TrendingUp } from 'lucide-react';
 import { useWarehouseStore } from '@/store/useWarehouseStore';
 import { exportMaterialConsumption, exportDrillRecords, exportMonthlyReport } from '@/utils/excel';
 
 const ReportCenter = () => {
-  const { materialConsumptions, drillRecords } = useWarehouseStore();
+  const { materialConsumptions, drillRecords, purchaseRequests } = useWarehouseStore();
   const [selectedMonth, setSelectedMonth] = useState('2026-06');
 
   const months = [
@@ -14,12 +14,27 @@ const ReportCenter = () => {
     { value: '2026-03', label: '2026年3月' },
   ];
 
-  const foodConsumption = materialConsumptions.filter((c) => c.type === 'food');
-  const waterConsumption = materialConsumptions.filter((c) => c.type === 'water');
-  const medicineConsumption = materialConsumptions.filter((c) => c.type === 'medicine');
+  const filteredConsumptions = useMemo(
+    () => materialConsumptions.filter((c) => c.date.startsWith(selectedMonth)),
+    [materialConsumptions, selectedMonth]
+  );
 
-  const totalParticipants = drillRecords.reduce((sum, r) => sum + r.participants, 0);
-  const totalDuration = drillRecords.reduce((sum, r) => sum + r.duration, 0);
+  const filteredDrills = useMemo(
+    () => drillRecords.filter((d) => d.date.startsWith(selectedMonth)),
+    [drillRecords, selectedMonth]
+  );
+
+  const filteredApprovals = useMemo(
+    () => purchaseRequests.filter((r) => r.createdAt.startsWith(selectedMonth)),
+    [purchaseRequests, selectedMonth]
+  );
+
+  const foodConsumption = filteredConsumptions.filter((c) => c.type === 'food');
+  const waterConsumption = filteredConsumptions.filter((c) => c.type === 'water');
+  const medicineConsumption = filteredConsumptions.filter((c) => c.type === 'medicine');
+
+  const totalParticipants = filteredDrills.reduce((sum, r) => sum + r.participants, 0);
+  const totalDuration = filteredDrills.reduce((sum, r) => sum + r.duration, 0);
 
   return (
     <div className="space-y-6">
@@ -43,14 +58,14 @@ const ReportCenter = () => {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => exportMaterialConsumption(materialConsumptions, selectedMonth)}
+            onClick={() => exportMaterialConsumption(filteredConsumptions, selectedMonth)}
             className="btn-tech flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             导出物资消耗
           </button>
           <button
-            onClick={() => exportDrillRecords(drillRecords, selectedMonth)}
+            onClick={() => exportDrillRecords(filteredDrills, selectedMonth)}
             className="btn-tech flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
@@ -58,7 +73,7 @@ const ReportCenter = () => {
           </button>
           <button
             onClick={() =>
-              exportMonthlyReport(materialConsumptions, drillRecords, selectedMonth)
+              exportMonthlyReport(filteredConsumptions, filteredDrills, filteredApprovals, selectedMonth)
             }
             className="btn-primary flex items-center gap-2"
           >
@@ -74,7 +89,7 @@ const ReportCenter = () => {
             <div>
               <p className="text-gray-500 text-sm">物资消耗记录</p>
               <p className="text-3xl font-display font-bold text-tech-400 mt-1">
-                {materialConsumptions.length}
+                {filteredConsumptions.length}
               </p>
             </div>
             <Package className="w-10 h-10 text-tech-400/30" />
@@ -85,7 +100,7 @@ const ReportCenter = () => {
             <div>
               <p className="text-gray-500 text-sm">应急演练次数</p>
               <p className="text-3xl font-display font-bold text-alert-green mt-1">
-                {drillRecords.length}
+                {filteredDrills.length}
               </p>
             </div>
             <Users className="w-10 h-10 text-alert-green/30" />
@@ -105,10 +120,9 @@ const ReportCenter = () => {
         <div className="data-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-sm">累计演练时长</p>
+              <p className="text-gray-500 text-sm">采购审批记录</p>
               <p className="text-3xl font-display font-bold text-alert-orange mt-1">
-                {totalDuration}
-                <span className="text-sm ml-1">分钟</span>
+                {filteredApprovals.length}
               </p>
             </div>
             <FileBarChart className="w-10 h-10 text-alert-orange/30" />
@@ -142,28 +156,32 @@ const ReportCenter = () => {
               <p className="text-xs text-gray-500">药品类</p>
             </div>
           </div>
-          <div className="overflow-x-auto max-h-64">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-military-900">
-                <tr className="border-b border-tech-500/20">
-                  <th className="text-left py-2 px-3 text-gray-400">日期</th>
-                  <th className="text-left py-2 px-3 text-gray-400">物资名称</th>
-                  <th className="text-left py-2 px-3 text-gray-400">数量</th>
-                  <th className="text-left py-2 px-3 text-gray-400">用途</th>
-                </tr>
-              </thead>
-              <tbody>
-                {materialConsumptions.map((item) => (
-                  <tr key={item.id} className="border-b border-tech-500/10">
-                    <td className="py-2 px-3 text-gray-400">{item.date}</td>
-                    <td className="py-2 px-3 text-gray-200">{item.materialName}</td>
-                    <td className="py-2 px-3 text-tech-400">{item.quantity}</td>
-                    <td className="py-2 px-3 text-gray-500">{item.purpose}</td>
+          {filteredConsumptions.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">该月份暂无物资消耗记录</p>
+          ) : (
+            <div className="overflow-x-auto max-h-64">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-military-900">
+                  <tr className="border-b border-tech-500/20">
+                    <th className="text-left py-2 px-3 text-gray-400">日期</th>
+                    <th className="text-left py-2 px-3 text-gray-400">物资名称</th>
+                    <th className="text-left py-2 px-3 text-gray-400">数量</th>
+                    <th className="text-left py-2 px-3 text-gray-400">用途</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredConsumptions.map((item) => (
+                    <tr key={item.id} className="border-b border-tech-500/10">
+                      <td className="py-2 px-3 text-gray-400">{item.date}</td>
+                      <td className="py-2 px-3 text-gray-200">{item.materialName}</td>
+                      <td className="py-2 px-3 text-tech-400">{item.quantity}</td>
+                      <td className="py-2 px-3 text-gray-500">{item.purpose}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="data-card">
@@ -171,51 +189,51 @@ const ReportCenter = () => {
             <Users className="w-5 h-5" />
             应急演练统计
           </h3>
-          <div className="space-y-4">
-            {drillRecords.map((record) => (
-              <div
-                key={record.id}
-                className="p-4 bg-military-800/50 rounded-lg border border-tech-500/20"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-gray-200">{record.name}</h4>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-bold ${
-                      record.result === '优秀'
-                        ? 'bg-alert-green/20 text-alert-green'
-                        : 'bg-alert-yellow/20 text-alert-yellow'
-                    }`}
-                  >
-                    {record.result}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">{record.date}</p>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">参与人数</p>
-                    <p className="font-medium text-tech-400">{record.participants} 人</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">演练时长</p>
-                    <p className="font-medium text-alert-yellow">{record.duration} 分钟</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">评级</p>
-                    <p
-                      className={`font-medium ${
-                        record.result === '优秀' ? 'text-alert-green' : 'text-alert-yellow'
+          {filteredDrills.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">该月份暂无演练记录</p>
+          ) : (
+            <div className="space-y-4">
+              {filteredDrills.map((record) => (
+                <div
+                  key={record.id}
+                  className="p-4 bg-military-800/50 rounded-lg border border-tech-500/20"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-200">{record.name}</h4>
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-bold ${
+                        record.result === '优秀'
+                          ? 'bg-alert-green/20 text-alert-green'
+                          : 'bg-alert-yellow/20 text-alert-yellow'
                       }`}
                     >
                       {record.result}
-                    </p>
+                    </span>
                   </div>
+                  <p className="text-xs text-gray-500 mb-3">{record.date}</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">参与人数</p>
+                      <p className="font-medium text-tech-400">{record.participants} 人</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">演练时长</p>
+                      <p className="font-medium text-alert-yellow">{record.duration} 分钟</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">评级</p>
+                      <p className={`font-medium ${record.result === '优秀' ? 'text-alert-green' : 'text-alert-yellow'}`}>
+                        {record.result}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-tech-500/10">
+                    备注: {record.notes}
+                  </p>
                 </div>
-                <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-tech-500/10">
-                  备注: {record.notes}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

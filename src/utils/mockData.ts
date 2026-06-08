@@ -89,15 +89,19 @@ export const mockShelterUnits: ShelterUnit[] = [
   },
 ];
 
-export const generateEnvironmentData = (shelterId: string): EnvironmentData => ({
-  id: generateId(),
-  shelterId,
-  oxygen: 19.5 + Math.random() * 2,
-  co2: 0.3 + Math.random() * 1.2,
-  temperature: 18 + Math.random() * 8,
-  humidity: 40 + Math.random() * 30,
-  timestamp: Date.now(),
-});
+export const generateEnvironmentData = (shelterId: string): EnvironmentData => {
+  const co2Base = shelterId === 's2' ? 1.6 : 0.8;
+  const co2Variance = shelterId === 's2' ? 0.6 : 0.8;
+  return {
+    id: generateId(),
+    shelterId,
+    oxygen: 19.5 + Math.random() * 2,
+    co2: co2Base + Math.random() * co2Variance,
+    temperature: 18 + Math.random() * 8,
+    humidity: 40 + Math.random() * 30,
+    timestamp: Date.now(),
+  };
+};
 
 export const mockDoors: DoorStatus[] = [
   { id: 'd1', shelterId: 's1', name: '1号防护门', position: { x: -25, y: 0, z: -10 }, isOpen: false, isFault: false, isLocked: false, lastMaintenance: '2026-05-01' },
