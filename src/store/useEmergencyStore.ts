@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AlertLevel, EmergencyPlan, MaintenanceOrder, ShelterPath, PathPoint } from '@/types';
+import type { AlertLevel, EmergencyPlan, MaintenanceOrder, ShelterPath, PathPoint, DoorStatus } from '@/types';
 import { mockMaintenanceOrders, generateId } from '@/utils/mockData';
 import { useShelterStore } from './useShelterStore';
 
@@ -33,61 +33,97 @@ const entryPoints: PathPoint[] = [
   { x: 25, y: 0, z: 25 },
 ];
 
-const isNearFaultyDoor = (point: PathPoint, faultyDoorPositions: PathPoint[]): boolean => {
-  return faultyDoorPositions.some(
-    (dp) => Math.abs(point.x - dp.x) < 5 && Math.abs(point.z - dp.z) < 5
-  );
+const entryDoorMap: Record<string, string> = {
+  s1w: 'd1', s1e: 'd2', s2w: 'd4', s2e: 'd3', s3w: 'd5', s3e: 'd6',
 };
 
-const generatePaths = (level: AlertLevel, faultyDoorPositions: PathPoint[]): { paths: ShelterPath[]; notes: string[] } => {
+const shelterAltEntries: Record<string, string[]> = {
+  s1: ['s1w', 's1e'],
+  s2: ['s2e', 's2w'],
+  s3: ['s3w', 's3e'],
+};
+
+const generatePaths = (level: AlertLevel, faultyDoors: DoorStatus[]): { paths: ShelterPath[]; notes: string[] } => {
   const notes: string[] = [];
   const pathCount: Record<AlertLevel, number> = { green: 1, blue: 2, yellow: 3, red: 5 };
   const count = pathCount[level];
+  const faultyDoorIds = new Set(faultyDoors.map((d) => d.id));
 
   const targetKeys = level === 'green'
     ? ['s3w']
     : level === 'blue'
-    ? ['s1e', 's3w']
-    : ['s1e', 's2w', 's3w'];
+    ? ['s1e', 's2e']
+    : level === 'yellow'
+    ? ['s1e', 's2e', 's3w']
+    : ['s1w', 's1e', 's2e', 's3w', 's3e'];
 
   const paths: ShelterPath[] = [];
 
   for (let i = 0; i < Math.min(count, entryPoints.length); i++) {
     const start = entryPoints[i];
-    const target = shelterEntries[targetKeys[i % targetKeys.length]];
-    const midX = (start.x + target.pos.x) / 2;
-    const midZ = (start.z + target.pos.z) / 2;
+    const originalKey = targetKeys[i % targetKeys.length];
+    const originalEntry = shelterEntries[originalKey];
+    const doorId = entryDoorMap[originalKey];
+    const isDoorFaulty = faultyDoorIds.has(doorId);
 
-    let waypoints: PathPoint[] = [
-      start,
-      { x: midX, y: 0, z: start.z + (target.pos.z - start.z) * 0.3 },
-      { x: midX, y: 0, z: midZ },
-      target.pos,
-    ];
+    let finalKey = originalKey;
+    let finalEntry = originalEntry;
+    let detoured = false;
+    let faultyDoorName = '';
 
-    const passesFaultyDoor = waypoints.some((wp) => isNearFaultyDoor(wp, faultyDoorPositions));
+    if (isDoorFaulty) {
+      const faultyDoor = faultyDoors.find((d) => d.id === doorId);
+      faultyDoorName = faultyDoor?.name || '故障防护门';
+      const shelterPrefix = originalKey.substring(0, 2);
+      const alts = shelterAltEntries[shelterPrefix] || [];
+      const altKey = alts.find((a) => a !== originalKey && !faultyDoorIds.has(entryDoorMap[a]));
 
-    if (passesFaultyDoor) {
-      const detourZ = midZ > 0 ? midZ + 8 : midZ - 8;
+      if (altKey) {
+        finalKey = altKey;
+        finalEntry = shelterEntries[altKey];
+        notes.push(
+          `路径${i + 1}原定经${originalEntry.label}进入，因${faultyDoorName}故障已改道至${finalEntry.label}，预计增加2-3分钟疏散时间`
+        );
+      } else {
+        notes.push(
+          `路径${i + 1}目标${originalEntry.label}附近${faultyDoorName}故障，路线已绕行避让，预计增加3-5分钟疏散时间`
+        );
+      }
+      detoured = true;
+    }
+
+    const midX = (start.x + finalEntry.pos.x) / 2;
+    const midZ = (start.z + finalEntry.pos.z) / 2;
+
+    let waypoints: PathPoint[];
+
+    if (detoured) {
+      const faultyDoor = faultyDoors.find((d) => d.id === doorId);
+      if (faultyDoor) {
+        const dp = faultyDoor.position;
+        const detourZ = dp.z > 0 ? dp.z - 15 : dp.z + 15;
+        waypoints = [
+          start,
+          { x: (start.x + dp.x) / 2, y: 0, z: start.z + (detourZ - start.z) * 0.4 },
+          { x: dp.x + (dp.x > 0 ? -8 : 8), y: 0, z: detourZ },
+          { x: (dp.x + finalEntry.pos.x) / 2, y: 0, z: detourZ + (finalEntry.pos.z - detourZ) * 0.5 },
+          finalEntry.pos,
+        ];
+      } else {
+        waypoints = [
+          start,
+          { x: midX, y: 0, z: start.z + (finalEntry.pos.z - start.z) * 0.3 },
+          { x: midX, y: 0, z: midZ },
+          finalEntry.pos,
+        ];
+      }
+    } else {
       waypoints = [
         start,
-        { x: start.x, y: 0, z: detourZ * 0.5 },
-        { x: midX, y: 0, z: detourZ },
-        { x: target.pos.x, y: 0, z: detourZ * 0.5 + target.pos.z * 0.5 },
-        target.pos,
+        { x: midX, y: 0, z: start.z + (finalEntry.pos.z - start.z) * 0.3 },
+        { x: midX, y: 0, z: midZ },
+        finalEntry.pos,
       ];
-
-      const faultyDoorNames = faultyDoorPositions
-        .map((dp) => {
-          const doors = useShelterStore.getState().doorStatus;
-          const found = doors.find((d) => Math.abs(d.position.x - dp.x) < 3 && Math.abs(d.position.z - dp.z) < 3);
-          return found?.name || '故障防护门';
-        })
-        .filter(Boolean);
-
-      notes.push(
-        `路径${i + 1}（${target.label}方向）因${faultyDoorNames.join('、')}故障已自动绕行，预计增加2-3分钟疏散时间`
-      );
     }
 
     paths.push({
@@ -95,8 +131,8 @@ const generatePaths = (level: AlertLevel, faultyDoorPositions: PathPoint[]): { p
       color: level,
       points: waypoints,
       fromArea: `入口${i + 1}`,
-      toShelter: target.label,
-      estimatedTime: 3 + i * 2 + (passesFaultyDoor ? 3 : 0),
+      toShelter: detoured ? `${finalEntry.label}（绕行）` : finalEntry.label,
+      estimatedTime: 3 + i * 2 + (detoured ? 3 : 0),
     });
   }
 
@@ -120,11 +156,9 @@ export const useEmergencyStore = create<EmergencyState>((set, get) => ({
 
   generateShelterPlan: (level) => {
     const doors = useShelterStore.getState().doorStatus;
-    const faultyDoorPositions = doors
-      .filter((d) => d.isFault)
-      .map((d) => d.position);
+    const faultyDoors = doors.filter((d) => d.isFault);
 
-    const { paths, notes } = generatePaths(level, faultyDoorPositions);
+    const { paths, notes } = generatePaths(level, faultyDoors);
     set({ rerouteNotes: notes });
 
     return {

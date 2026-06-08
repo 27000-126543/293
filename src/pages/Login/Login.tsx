@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, User, Scan, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -18,26 +18,31 @@ const Login = () => {
   const [scanProgress, setScanProgress] = useState(0);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (isScanning && selectedRole) {
-      const interval = setInterval(() => {
-        setScanProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            handleLogin();
-            return 100;
-          }
-          return prev + 2;
-        });
-      }, 50);
-      return () => clearInterval(interval);
+  const startScan = () => {
+    if (!selectedRole) {
+      setError('请先选择角色');
+      return;
     }
-  }, [isScanning, selectedRole]);
+    setError('');
+    setIsScanning(true);
+    setScanProgress(0);
 
-  const handleLogin = async () => {
-    if (!selectedRole) return;
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 2;
+      setScanProgress(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        doLogin();
+      }
+    }, 50);
+  };
+
+  const doLogin = async () => {
+    const role = useAuthStore.getState().selectedRole;
+    if (!role) return;
     try {
-      const success = await login(selectedRole, false);
+      const success = await login(role, false);
       if (success) {
         navigate('/dashboard');
       } else {
@@ -50,16 +55,6 @@ const Login = () => {
       setIsScanning(false);
       setScanProgress(0);
     }
-  };
-
-  const startScan = () => {
-    if (!selectedRole) {
-      setError('请先选择角色');
-      return;
-    }
-    setError('');
-    setIsScanning(true);
-    setScanProgress(0);
   };
 
   return (
@@ -123,7 +118,7 @@ const Login = () => {
                 isScanning ? 'shadow-glow-tech' : ''
               }`}>
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-tech-500/5 to-transparent" />
-                
+
                 <div className="w-48 h-56 rounded-lg border-2 border-tech-500/50 bg-military-800/50 flex items-center justify-center relative overflow-hidden">
                   {!isScanning ? (
                     <div className="text-center">

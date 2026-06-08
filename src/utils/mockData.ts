@@ -131,11 +131,21 @@ export const mockMaterials: Material[] = [
 export const mockPurchaseRequests: PurchaseRequest[] = [
   {
     id: 'pr1',
-    materials: [{ materialId: 'm7', quantity: 100, name: '方便面' }],
-    applicant: '李华',
+    materials: [
+      { materialId: 'm1', quantity: 560, name: '压缩饼干' },
+      { materialId: 'm2', quantity: 350, name: '军用罐头' },
+      { materialId: 'm3', quantity: 1400, name: '瓶装饮用水' },
+      { materialId: 'm4', quantity: 210, name: '桶装纯净水' },
+      { materialId: 'm7', quantity: 280, name: '方便面' },
+    ],
+    applicant: '系统自动',
     currentLevel: 1,
     status: 'pending',
-    approvalRecords: [{ level: 1, approver: '', status: 'pending', date: '' }],
+    approvalRecords: [
+      { level: 1, approver: '', status: 'pending', comment: '', date: '' },
+      { level: 2, approver: '', status: 'pending', comment: '', date: '' },
+      { level: 3, approver: '', status: 'pending', comment: '', date: '' },
+    ],
     createdAt: '2026-06-05',
   },
 ];
